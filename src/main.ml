@@ -1,5 +1,5 @@
 
 let _ =
   Screen.init ();
-  Screen.sync ();
-  while true do () done
+  FileLoader.load_file Sys.argv.(1);
+  CPU.run ()

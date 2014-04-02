@@ -1,4 +1,5 @@
 SC=   Memory.ml   \
+      FileLoader.ml \
       Screen.ml   \
       CPU.ml      \
       ISet.ml     \
@@ -9,7 +10,7 @@ SRC=$(addprefix src/, $(SC))
 TARGET= chip8emu
 
 $(TARGET): $(SRC)
-	cd src; ocamlc graphics.cma $(SC) -o ../$(TARGET)
+	cd src; ocamlc unix.cma graphics.cma $(SC) -o ../$(TARGET)
 
 clean:
 	rm -rf src/*.cm? $(TARGET)

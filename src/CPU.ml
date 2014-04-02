@@ -1,7 +1,7 @@
 let reg_nb = 16
 let pc = ref 0
 let regs = Array.make reg_nb 0
-let reg_i = 0
+let reg_i = ref 0
 
 let fetch () =
   pc := !pc + 1;
@@ -26,6 +26,21 @@ let xor_nb nb1 nb2 =
     1
   else
     0
+
+let rec draw_sprite x y i height ct =
+  let line = Memory.get i
+  in
+    let rec draw_line value count =
+      match value with
+      | 0 -> ()
+      | _ -> (if (value mod 2) <> 0 then
+                Screen.plot (x + count) (y + ct - 1) Screen.fg_color;
+                Array.set regs 0xF 1);
+              draw_line (value / 2) (count + 1)
+    in
+      draw_line line 0;
+      if ct <> height then
+        draw_sprite x y (i + 1) height (ct + 1)
 
 let execute instr =
   match instr with
@@ -142,3 +157,34 @@ let execute instr =
         pc := !pc + 1
     in
       sub ((ins land 0x0F00) / 0x0100) ((ins land 0x00F0) / 0x0010)
+  (* 0xANNN Loads NNN in I *)
+  | ins when (ins land 0xF000) = 0xA000 ->
+    reg_i := ins land 0x0FFF
+  (* 0xBNNN Jumps at V0 + NNN *)
+  | ins when (ins land 0xF000) = 0xB000 ->
+    pc := (Array.get regs 0) + (ins land 0x0FFF)
+  (* 0xCXKK Loads (Random & KK) in VX *)
+  | ins when (ins land 0xF000) = 0xC000 ->
+    let sub reg max =
+      Random.self_init ();
+      Array.set regs reg (Random.bits () land max)
+    in
+      sub ((ins land 0x0F00) / 0x0100) (ins land 0x00FF)
+  (* 0xDXYN Draw sprite (see CHIP8 doc for more explanations) *)
+  | ins when (ins land 0xF000) = 0xD000 ->
+    let sub reg1 reg2 height =
+      draw_sprite (Array.get regs reg1) (Array.get regs reg2) !reg_i height 0
+    in
+      sub ((ins land 0x0F00) / 0x0100) ((ins land 0x00F0) / 0x0010) (ins land 0x000F)
+  (* 0xEX9E Skips next instruction if key stored in VX is pressed*)
+  (* TODO *)
+  (* 0xEXA1 Skips next instruction if key stored in VX is not pressed *)
+  (* TODO *)
+  (* 0xFX0A Loads key pressed in VX *)
+  (* TODO *)
+  | _ -> print_string "Unknown instruction\n"
+
+let run () =
+  while true do
+    execute (fetch ())
+  done
