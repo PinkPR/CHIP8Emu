@@ -74,7 +74,7 @@ execute instr pc =
   (* 0x1NNN Jump on NNN*)
   | ins when (ins land 0xF000) = 0x1000 -> pc := ins land 0x0FFF
   (* 0x2NNN Calls subroutine at 0xNNN *)
-  | ins when (ins land 0xF001) = 0x2000 ->
+  | ins when (ins land 0xF000) = 0x2000 ->
     call_subrt (ins land 0x0FFF)
   (* 0x3XKK Goes next instr if VX == KK *)
   | ins when (ins land 0xF000) = 0x3000 ->
@@ -120,6 +120,12 @@ execute instr pc =
   | ins when (ins land 0xF00F) = 0x8001 ->
     let sub reg1 reg2 =
       Array.set regs reg1 (or_nb (Array.get regs reg1) (Array.get regs reg2))
+    in
+      sub ((ins land 0x0F00) / 0x0100) ((ins land 0x00F0) / 0x0010)
+  (* 0x8XY2 Loads VX && VY *)
+  | ins when (ins land 0xF00F) = 0x8002 ->
+    let sub reg1 reg2 =
+      Array.set regs reg1 (and_nb (Array.get regs reg1) (Array.get regs reg2))
     in
       sub ((ins land 0x0F00) / 0x0100) ((ins land 0x00F0) / 0x0010)
   (* 0x8XY3 Loads VX ^ VY *)
@@ -197,7 +203,8 @@ execute instr pc =
   (* 0xDXYN Draw sprite (see CHIP8 doc for more explanations) *)
   | ins when (ins land 0xF000) = 0xD000 ->
     let sub reg1 reg2 height =
-      draw_sprite (Array.get regs reg1) (Array.get regs reg2) !reg_i height 0
+      draw_sprite (Array.get regs reg1) (Array.get regs reg2) !reg_i height 0;
+      Screen.sync ()
     in
       sub ((ins land 0x0F00) / 0x0100) ((ins land 0x00F0) / 0x0010) (ins land 0x000F)
   (* 0xEX9E Skips next instruction if key stored in VX is pressed*)
@@ -205,7 +212,11 @@ execute instr pc =
   (* 0xEXA1 Skips next instruction if key stored in VX is not pressed *)
   (* TODO *)
   (* 0xFX0A Loads key pressed in VX *)
-  (* TODO *)
+  | ins when (ins land 0xF0FF) = 0xF00A ->
+    let sub reg =
+      Array.set regs reg (Char.code (Graphics.read_key ()))
+    in
+      sub ((ins land 0x0F00) / 0x100)
   (* 0xFX1E Loads VX + I in I *)
   | ins when (ins land 0xF0FF) = 0xF01E ->
     let sub reg =

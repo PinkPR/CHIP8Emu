@@ -21,7 +21,8 @@ let clear () =
     for j = 0 to 31 do
       plot i j bg_color
     done
-  done
+  done;
+  sync ()
 
 let init () =
   Graphics.open_graph " 256x128";
