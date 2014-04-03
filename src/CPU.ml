@@ -4,8 +4,8 @@ let regs = Array.make reg_nb 0
 let reg_i = ref 0
 
 let fetch () =
-  pc := !pc + 1;
-  Memory.get (!pc - 1)
+  pc := !pc + 2;
+  (Memory.get (!pc - 2) * 0x100)+ (Memory.get (!pc - 1))
 
 let and_nb nb1 nb2 =
   if (nb1 = 0) || (nb2 = 0) then
@@ -28,16 +28,13 @@ let xor_nb nb1 nb2 =
     0
 
 let rec draw_sprite x y i height ct =
-  Printf.printf "adress : %x\n" i;
   let line = Memory.get i
   in
     let rec draw_line value count =
-      Printf.printf "Line : %d\n" value;
       match value with
       | 0 -> ()
       | _ ->  if (value mod 2) <> 0 then
                 begin
-                  Printf.printf "To plot : x: %d y: %d\n" (x + count) (y + ct - 1);
                   Screen.plot (x + count) (y + ct - 1) Screen.fg_color;
                   Array.set regs 0xF 1
                 end;
@@ -56,7 +53,6 @@ let print_state () =
 
 let execute instr =
   Printf.printf "INSTR : %x\n" instr;
-  print_state ();
   match instr with
   (* 0x00E0 Screen cleaning *)
   | 0x00E0 -> Screen.clear ()
@@ -70,21 +66,21 @@ let execute instr =
   | ins when (ins land 0xF000) = 0x3000 ->
     let sub reg value =
       if (Array.get regs reg) = value then
-        pc := !pc + 1
+        pc := !pc + 2
     in
       sub ((ins land 0x0F00) / 0x0100) (ins land 0x00FF)
   (* 0x4XKK Goes next if VX <> KK *)
   | ins when (ins land 0xF000) = 0x4000 ->
     let sub reg value =
       if (Array.get regs reg) <> value then
-        pc := !pc + 1
+        pc := !pc + 2
     in
       sub ((ins land 0x0F00) / 0x0100) (ins land 0x00FF)
   (* 0x5XY0 Goes next if VX == VY *)
   | ins when (ins land 0xF000) = 0x5000 ->
     let sub reg1 reg2 =
       if (Array.get regs reg1) = (Array.get regs reg2) then
-        pc := !pc + 1
+        pc := !pc + 2
     in
       sub ((ins land 0x0F00) / 0x0100) ((ins land 0x00F0) / 0x0010)
   (* 0x6XKK Load KK in VX *)
@@ -168,7 +164,7 @@ let execute instr =
   | ins when (ins land 0xF000) = 0x9000 ->
     let sub reg1 reg2 =
       if (Array.get regs reg1) <> (Array.get regs reg2) then
-        pc := !pc + 1
+        pc := !pc + 2
     in
       sub ((ins land 0x0F00) / 0x0100) ((ins land 0x00F0) / 0x0010)
   (* 0xANNN Loads NNN in I *)
