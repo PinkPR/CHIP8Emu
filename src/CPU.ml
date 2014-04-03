@@ -1,9 +1,9 @@
 let reg_nb = 16
-let pc = ref 0x200
+(* let pc = ref 0x200 *)
 let regs = Array.make reg_nb 0
 let reg_i = ref 0
 
-let fetch () =
+let fetch pc =
   pc := !pc + 2;
   (Memory.get (!pc - 2) * 0x100)+ (Memory.get (!pc - 1))
 
@@ -44,14 +44,27 @@ let rec draw_sprite x y i height ct =
       if ct <> (height - 1) then
         draw_sprite x y (i + 1) height (ct + 1)
 
-let print_state () =
+let print_state pc =
   Printf.printf "PC : %X\n" !pc;
   for i = 0 to 0xF do
     Printf.printf "REG[%X] : %X\n" i (Array.get regs i)
   done;
   Printf.printf "REG_I : %X\n\n" !reg_i
 
-let execute instr =
+let rec call_subrt addr =
+  let pc2 = ref 0 and
+  ins = ref 0
+  in
+    pc2 := addr;
+    ins := fetch pc2;
+    while !ins <> 0x00EE do
+      begin
+        execute !ins pc2;
+        ins := fetch pc2
+      end
+    done
+and
+execute instr pc =
   Printf.printf "INSTR : %x\n" instr;
   match instr with
   (* 0x00E0 Screen cleaning *)
@@ -61,7 +74,8 @@ let execute instr =
   (* 0x1NNN Jump on NNN*)
   | ins when (ins land 0xF000) = 0x1000 -> pc := ins land 0x0FFF
   (* 0x2NNN Calls subroutine at 0xNNN *)
-  (* TODO *)
+  | ins when (ins land 0xF001) = 0x2000 ->
+    call_subrt (ins land 0x0FFF)
   (* 0x3XKK Goes next instr if VX == KK *)
   | ins when (ins land 0xF000) = 0x3000 ->
     let sub reg value =
@@ -192,9 +206,45 @@ let execute instr =
   (* TODO *)
   (* 0xFX0A Loads key pressed in VX *)
   (* TODO *)
+  (* 0xFX1E Loads VX + I in I *)
+  | ins when (ins land 0xF0FF) = 0xF01E ->
+    let sub reg =
+      reg_i := ((Array.get regs reg) + !reg_i);
+      reg_i := (!reg_i land 0xFF)
+    in
+      sub ((ins land 0x0F00) / 0x100)
+  (* 0xFX29 Loads the VX's character adress in I *)
+  | ins when (ins land 0xF0FF) = 0xF029 ->
+    reg_i := (Array.get regs ((ins land 0x0F00) / 0x100)) * 5
+  (* 0xFX33 Stores BCD representation of VX at I, I+1, I+2 *)
+  | ins when (ins land 0xF0FF) = 0xF033 ->
+    let sub reg =
+      Memory.set !reg_i ((Array.get regs reg) / 100);
+      Memory.set (!reg_i + 1) ((Array.get regs reg) / 10);
+      Memory.set (!reg_i + 2) (Array.get regs reg)
+    in
+      sub ((ins land 0x0F00) / 0x100)
+  (* 0xFX55 Loads V0 .. VF with I ... I + 0xF *)
+  | ins when (ins land 0xF0FF) = 0xF055 ->
+    for i = 0 to 0xF do
+      begin
+        Array.set regs i (!reg_i + i)
+      end
+    done
+  (* 0xFX65 Loads V0 .. VF with value at I ... I + 0xF *)
+  | ins when (ins land 0xF0FF) = 0xF065 ->
+    for i = 0 to 0xF do
+      begin
+        Array.set regs i (Memory.get (!reg_i + i))
+      end
+    done
   | _ -> print_string "Unknown instruction\n"
 
 let run () =
+  let pc = ref 0x200
+  in
   while true do
-    execute (fetch ())
+    begin
+      execute (fetch pc) pc
+    end
   done
