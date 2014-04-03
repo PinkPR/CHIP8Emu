@@ -1,5 +1,5 @@
 let reg_nb = 16
-let pc = ref 0
+let pc = ref 0x200
 let regs = Array.make reg_nb 0
 let reg_i = ref 0
 
@@ -28,21 +28,35 @@ let xor_nb nb1 nb2 =
     0
 
 let rec draw_sprite x y i height ct =
+  Printf.printf "adress : %x\n" i;
   let line = Memory.get i
   in
     let rec draw_line value count =
+      Printf.printf "Line : %d\n" value;
       match value with
       | 0 -> ()
-      | _ -> (if (value mod 2) <> 0 then
-                Screen.plot (x + count) (y + ct - 1) Screen.fg_color;
-                Array.set regs 0xF 1);
-              draw_line (value / 2) (count + 1)
+      | _ ->  if (value mod 2) <> 0 then
+                begin
+                  Printf.printf "To plot : x: %d y: %d\n" (x + count) (y + ct - 1);
+                  Screen.plot (x + count) (y + ct - 1) Screen.fg_color;
+                  Array.set regs 0xF 1
+                end;
+                draw_line (value / 2) (count + 1)
     in
       draw_line line 0;
-      if ct <> height then
+      if ct <> (height - 1) then
         draw_sprite x y (i + 1) height (ct + 1)
 
+let print_state () =
+  Printf.printf "PC : %X\n" !pc;
+  for i = 0 to 0xF do
+    Printf.printf "REG[%X] : %X\n" i (Array.get regs i)
+  done;
+  Printf.printf "REG_I : %X\n\n" !reg_i
+
 let execute instr =
+  Printf.printf "INSTR : %x\n" instr;
+  print_state ();
   match instr with
   (* 0x00E0 Screen cleaning *)
   | 0x00E0 -> Screen.clear ()

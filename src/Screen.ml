@@ -1,5 +1,5 @@
-let bg_color = Graphics.rgb 0 0 0
-let fg_color = Graphics.rgb 255 0 0
+let bg_color = Graphics.black
+let fg_color = Graphics.green
 
 let xmul = 4
 let ymul = 4
